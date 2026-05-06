@@ -1,53 +1,81 @@
-Push the project to GitHub, generate a polished README with a live screenshot, deploy via GitHub Pages, and update the repo About section with the live URL.
+Push the project to GitHub, generate a polished README with a live screenshot, deploy via GitHub Pages, and update the repo About with the live URL.
+
+Usage: /github-push <GitHub repo URL>
 
 GitHub repo URL: $ARGUMENTS
 
 ---
 
-## Step 1 — Parse the repo URL
+## Step 1 — Parse inputs
 
-Extract `OWNER` and `REPO` from the provided URL (e.g. `https://github.com/alice/my-site` → owner=`alice`, repo=`my-site`).
-If no URL was provided, stop and ask: "Please run /github-push <GitHub repo URL>".
+Extract `OWNER` and `REPO` from the URL argument (e.g. `https://github.com/alice/my-site` → owner=`alice`, repo=`my-site`).
+
+If no URL was provided, stop and ask: **"Please run /github-push <GitHub repo URL>"** — do not proceed.
 
 ---
 
-## Step 2 — Take a screenshot with Playwright MCP
+## Step 2 — Require a GitHub token
 
-The local dev server should already be running on http://localhost:8080 (started by the Stop hook). If it is not responding, start it now with:
-```
-node -e "const h=require('http'),fs=require('fs');h.createServer((_,r)=>{r.writeHead(200,{'Content-Type':'text/html;charset=utf-8'});fs.createReadStream('index.html').pipe(r)}).listen(8080)" &
+A Personal Access Token is needed to enable GitHub Pages and update the repo About via the API.
+
+Check for a token in this order:
+1. `$env:GH_TOKEN` or `$env:GITHUB_TOKEN` environment variable
+2. Ask the user: "Please provide a GitHub Personal Access Token with **repo** scope. You can create one at https://github.com/settings/tokens/new — then run: `! $env:GH_TOKEN = 'ghp_...'`"
+
+Do not proceed until a token is available. Store it as `$TOKEN` for all API calls below.
+
+All GitHub API calls use these PowerShell headers:
+```powershell
+$headers = @{
+    Authorization = "token $TOKEN"
+    "User-Agent"  = "PowerShell"
+    Accept        = "application/vnd.github+json"
+}
 ```
 
-Then use the Playwright MCP browser tool to:
+---
+
+## Step 3 — Take a screenshot with Playwright MCP
+
+The local dev server should already be running on http://localhost:8080. If not, start it:
+```
+node -e "const h=require('http'),fs=require('fs');h.createServer((_,r)=>{r.writeHead(200,{'Content-Type':'text/html;charset=utf-8'});fs.createReadStream('index.html').pipe(r)}).listen(8080)"
+```
+
+Use the Playwright MCP browser tool to:
 1. Navigate to `http://localhost:8080`
-2. Wait for the page to fully load (wait for network idle)
+2. Wait for network idle (page fully loaded)
 3. Take a full-page screenshot and save it as `screenshot.png` in the project root
 
-If Playwright MCP is not available, skip the screenshot and note it in the README.
+If Playwright MCP is unavailable, skip the screenshot and in the README replace the screenshot line with:
+```
+> Screenshot not available — visit the [live site](https://<OWNER>.github.io/<REPO>) to preview.
+```
 
 ---
 
-## Step 3 — Gather project facts for the README
+## Step 4 — Scan the project and gather facts
 
-Read `index.html` to extract:
-- The site title (from `<title>` or the hero heading)
-- A one-sentence description of the project
-- The list of all six sections (Hero, About, Packages, Gallery, Booking Form, Contact)
-- The form submission endpoint email
-- External dependencies (Google Fonts, Unsplash, formsubmit.co)
+Read the main source files to extract:
+- **Site / app title** — from `<title>`, hero heading, or `package.json` `name`
+- **One-sentence description** of what the project does and who it is for
+- **Tech stack** — detect from file extensions and imports (HTML, CSS, JS, React, Vue, Tailwind, Node, etc.)
+- **Sections / pages** — top-level nav links or routes
+- **External dependencies** — fonts, APIs, form endpoints, CDNs
+- **How to run locally** — check for `package.json` scripts, CLAUDE.md instructions, or plain Node/static server
 
-Build a directory tree of the project (excluding `.git`).
+Build a directory tree of the project excluding `.git`, `node_modules`, and build output folders.
 
 ---
 
-## Step 4 — Create README.md
+## Step 5 — Create README.md
 
-Write `README.md` in the project root with the following structure. Use real values from Step 3 — do NOT use generic placeholders.
+Write `README.md` in the project root. Use only real values — no generic placeholders.
 
 ```markdown
 # <Site Title>
 
-<One-sentence description of the project>
+<One-sentence description>
 
 ![Site Screenshot](screenshot.png)
 
@@ -55,9 +83,15 @@ Write `README.md` in the project root with the following structure. Use real val
 
 ## Tech Stack
 
+<!-- Include only the badges that match the actual tech detected in Step 4 -->
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Vue](https://img.shields.io/badge/Vue.js-35495E?style=for-the-badge&logo=vue.js&logoColor=4FC08D)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
 ![Google Fonts](https://img.shields.io/badge/Google_Fonts-4285F4?style=for-the-badge&logo=google&logoColor=white)
 
 ## Live Demo
@@ -68,37 +102,16 @@ Write `README.md` in the project root with the following structure. Use real val
 
 ## About the Project
 
-<2–3 paragraph description of the site: what it is, who it is for, and the design aesthetic (elegant, romantic, blush-pink + gold). Mention the photographer persona and the six sections.>
+<2–3 paragraphs: what the project is, who it is for, the design aesthetic or technical approach, and notable features.>
 
 ---
 
 ## File Structure
 
 \`\`\`
-<repo-name>/
-├── index.html          # All HTML, CSS, and JavaScript — single file, no build step
-├── screenshot.png      # Hero screenshot (auto-generated)
-├── .github/
-│   └── workflows/
-│       └── deploy.yml  # GitHub Pages deployment workflow
-└── .claude/
-    ├── settings.json   # Claude Code project settings (Stop hook)
-    └── commands/
-        └── github-push.md  # This slash command
+<REPO>/
+<directory tree from Step 4>
 \`\`\`
-
----
-
-## Sections
-
-| Section | Description |
-|---------|-------------|
-| **Hero** | Full-viewport background image with CTA button |
-| **About** | Two-column photographer bio |
-| **Packages** | Three tiered pricing cards (Essentials / Signature / Luxury) |
-| **Gallery** | CSS-columns masonry grid with 6 Unsplash images |
-| **Booking Form** | Nine-field enquiry form (name, email, phone, date, time, package, location, guests, message) |
-| **Contact** | Contact details, embedded Google Map, and footer |
 
 ---
 
@@ -106,40 +119,32 @@ Write `README.md` in the project root with the following structure. Use real val
 
 ### Run locally
 
-Node.js must be installed. No build step or package manager required.
-
 \`\`\`bash
 git clone https://github.com/<OWNER>/<REPO>.git
 cd <REPO>
-node -e "const h=require('http'),fs=require('fs');h.createServer((_,r)=>{r.writeHead(200,{'Content-Type':'text/html;charset=utf-8'});fs.createReadStream('index.html').pipe(r)}).listen(8080,()=>console.log('http://localhost:8080'))"
+<install and run commands detected in Step 4>
 \`\`\`
-
-Then open [http://localhost:8080](http://localhost:8080).
 
 ### Customise
 
 | What to change | Where |
 |----------------|-------|
-| Colour palette | CSS custom properties on `:root` in `index.html` |
-| Photos | Unsplash `src` URLs in the `#gallery` section |
-| Packages & pricing | `.package-card` elements in the `#packages` section |
-| Form email | `fetch` URL in the inline `<script>` at the bottom |
-| Photographer bio | `#about` section |
+<rows relevant to this specific project>
 
 ---
 
 ## Deployment
 
-The site is automatically deployed to **GitHub Pages** on every push to `main` via the included GitHub Actions workflow (`.github/workflows/deploy.yml`).
+Automatically deployed to **GitHub Pages** on every push to `main` via `.github/workflows/deploy.yml`.
 
 Live URL: **https://<OWNER>.github.io/<REPO>**
 ```
 
 ---
 
-## Step 5 — Create the GitHub Actions workflow
+## Step 6 — Create the GitHub Actions workflow
 
-Create `.github/workflows/deploy.yml`:
+If `.github/workflows/deploy.yml` does not already exist, create it:
 
 ```yaml
 name: Deploy to GitHub Pages
@@ -181,72 +186,103 @@ jobs:
         uses: actions/deploy-pages@v4
 ```
 
+If the file already exists and is correct, skip this step.
+
 ---
 
-## Step 6 — Initialize git and push to GitHub
+## Step 7 — Commit and push to GitHub
 
-Run the following in sequence. Stop and report any error before proceeding:
+Run in sequence — stop and report any error before continuing:
 
-```bash
-# 1. Initialize git if not already a repo
+```powershell
+# 1. Init git if needed
 git init
 
-# 2. Stage everything
-git add .
-
-# 3. Commit
-git commit -m "Initial commit: Lumière Bridal Photography site + GitHub Pages deployment"
-
-# 4. Rename branch to main (safe even if already on main)
+# 2. Ensure on main branch
 git branch -M main
 
-# 5. Add remote (skip if it already exists)
-git remote add origin $ARGUMENTS || git remote set-url origin $ARGUMENTS
+# 3. Set remote (add or update)
+git remote add origin https://github.com/<OWNER>/<REPO>.git
+# if remote already exists:
+git remote set-url origin https://github.com/<OWNER>/<REPO>.git
 
-# 6. Push
+# 4. Stage and commit
+git add .
+git commit -m "Add README, screenshot, and GitHub Pages deployment"
+
+# 5. Push
 git push -u origin main
 ```
 
 ---
 
-## Step 7 — Enable GitHub Pages and update repo About
+## Step 8 — Make repo public (if needed) and enable GitHub Pages
 
-After the push succeeds:
-
-1. Use the `gh` CLI to enable GitHub Pages from the `gh-actions` source:
-```bash
-gh api repos/<OWNER>/<REPO>/pages \
-  --method POST \
-  -f build_type=workflow \
-  -f source='{"branch":"main","path":"/"}' 2>/dev/null || true
+### 8a — Check repo visibility
+```powershell
+$repo = Invoke-RestMethod -Uri "https://api.github.com/repos/<OWNER>/<REPO>" -Headers $headers
+$repo.visibility   # "public" or "private"
 ```
 
-2. Wait ~5 seconds for the Pages environment to be created, then get the live URL:
-```bash
-gh api repos/<OWNER>/<REPO>/pages --jq '.html_url'
+If the repo is **private**, make it public (GitHub Pages requires a public repo on free accounts):
+```powershell
+$body = '{"private":false,"visibility":"public"}'
+Invoke-RestMethod -Uri "https://api.github.com/repos/<OWNER>/<REPO>" -Method PATCH -Headers $headers -Body $body -ContentType "application/json"
 ```
 
-3. Update the repo About (description + website):
-```bash
-gh repo edit <OWNER>/<REPO> \
-  --description "Elegant single-page bridal photography booking site — HTML/CSS/JS, no build step" \
-  --homepage "https://<OWNER>.github.io/<REPO>"
+If the user does not want the repo to be public, stop and explain they need GitHub Pro for Pages on private repos.
+
+### 8b — Enable GitHub Pages with GitHub Actions source
+```powershell
+$body = '{"build_type":"workflow"}'
+try {
+    Invoke-RestMethod -Uri "https://api.github.com/repos/<OWNER>/<REPO>/pages" -Method POST -Headers $headers -Body $body -ContentType "application/json"
+} catch {
+    # 409 = already exists, update it
+    if ($_.Exception.Response.StatusCode.value__ -eq 409) {
+        Invoke-RestMethod -Uri "https://api.github.com/repos/<OWNER>/<REPO>/pages" -Method PUT -Headers $headers -Body $body -ContentType "application/json"
+    }
+}
 ```
 
-4. Add the topics:
-```bash
-gh repo edit <OWNER>/<REPO> --add-topic "bridal-photography" --add-topic "single-page" --add-topic "html-css-js" --add-topic "github-pages"
+### 8c — Trigger deployment
+Push an empty commit to fire the workflow:
+```powershell
+git commit --allow-empty -m "Trigger GitHub Pages deployment"
+git push origin main
 ```
 
 ---
 
-## Step 8 — Report back
+## Step 9 — Update repo About
 
-Print a summary:
+Set the description, homepage URL, and topics:
+
+```powershell
+# Description and homepage
+$body = '{
+  "description": "<one-sentence description from Step 4>",
+  "homepage": "https://<OWNER>.github.io/<REPO>"
+}'
+Invoke-RestMethod -Uri "https://api.github.com/repos/<OWNER>/<REPO>" -Method PATCH -Headers $headers -Body $body -ContentType "application/json"
+
+# Topics (replace with tags relevant to this project's actual tech stack)
+$body = '{"names":["github-pages","html-css-js","single-page"]}'
+Invoke-RestMethod -Uri "https://api.github.com/repos/<OWNER>/<REPO>/topics" -Method PUT -Headers $headers -Body $body -ContentType "application/json"
+```
+
+---
+
+## Step 10 — Report back
+
+Print this summary (fill in real values):
 
 ```
-✅ Pushed to:     https://github.com/<OWNER>/<REPO>
-🌐 Live site:     https://<OWNER>.github.io/<REPO>  (GitHub Pages deploys in ~1 min)
-📄 README:        Created with screenshot and full documentation
-⚙️  CI/CD:         .github/workflows/deploy.yml — auto-deploys on push to main
+✅ Pushed to:   https://github.com/<OWNER>/<REPO>
+🌐 Live site:   https://<OWNER>.github.io/<REPO>  (GitHub Actions deploys in ~1 min)
+📄 README:      Created with badges, file structure, how-to, and screenshot
+⚙️  CI/CD:       .github/workflows/deploy.yml — auto-deploys on every push to main
+📝 Repo About:  Description and homepage updated
 ```
+
+Watch the deployment at: `https://github.com/<OWNER>/<REPO>/actions`
